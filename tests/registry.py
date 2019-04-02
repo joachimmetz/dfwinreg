@@ -117,10 +117,19 @@ class TestWinRegistryFileReaderMapped(TestWinRegistryFileReader):
     Returns:
       WinRegistryFile: Windows Registry file or None.
     """
-    if path == '%SystemRoot%\\System32\\config\\SYSTEM':
+    if path == '%SystemRoot%\\System32\\config\\SAM':
+      path = os.path.join(self._TEST_DATA_PATH, 'SAM')
+    elif path == '%SystemRoot%\\System32\\config\\SECURITY':
+      path = os.path.join(self._TEST_DATA_PATH, 'SECURITY')
+    elif path == '%SystemRoot%\\System32\\config\\SOFTWARE':
+      path = os.path.join(self._TEST_DATA_PATH, 'SOFTWARE')
+    elif path == '%SystemRoot%\\System32\\config\\SYSTEM':
       path = os.path.join(self._TEST_DATA_PATH, 'SYSTEM')
     elif path == '%UserProfile%\\NTUSER.DAT':
       path = os.path.join(self._TEST_DATA_PATH, 'NTUSER.DAT')
+    elif path == (
+        '%UserProfile%\\AppData\\Local\\Microsoft\\Windows\\UsrClass.dat'):
+      path = os.path.join(self._TEST_DATA_PATH, 'UsrClass.dat')
 
     return super(TestWinRegistryFileReaderMapped, self).Open(
         path, ascii_codepage=ascii_codepage)
@@ -385,9 +394,54 @@ class RegistryTest(test_lib.BaseTestCase):
 
     registry_file.Close()
 
-  # TODO: add GetRegistryFileMapping on UsrClass file test.
+  @test_lib.skipUnlessHasTestFile(['UsrClass.dat'])
+  def testGetRegistryFileMappingUsrClassDat(self):
+    """Tests the GetRegistryFileMapping function on a UsrClass.dat file."""
+    win_registry = registry.WinRegistry(
+        registry_file_reader=TestWinRegistryFileReader())
 
-  # TODO: add tests for GetRootKey
+    test_path = self._GetTestFilePath(['UsrClass.dat'])
+    registry_file = win_registry._OpenFile(test_path)
+
+    key_path_prefix = win_registry.GetRegistryFileMapping(registry_file)
+    self.assertEqual(key_path_prefix, 'HKEY_CURRENT_USER\\Software\\Classes')
+
+    registry_file.Close()
+
+  def testGetRootKey(self):
+    """Tests the GetRootKey function."""
+    win_registry = registry.WinRegistry(
+        registry_file_reader=TestWinRegistryFileReader())
+
+    root_key = win_registry.GetRootKey()
+    self.assertIsNotNone(root_key)
+    self.assertEqual(root_key.number_of_subkeys, 2)
+
+    expected_subkey_names = ['HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE']
+    subkey_names = [key.name for key in root_key.GetSubkeys()]
+    self.assertEqual(subkey_names, expected_subkey_names)
+
+    subkey = root_key.GetSubkeyByPath('HKEY_CURRENT_USER\\Software')
+    self.assertIsNotNone(subkey)
+
+  @test_lib.skipUnlessHasTestFile(['NTUSER.DAT'])
+  @test_lib.skipUnlessHasTestFile(['UsrClass.dat'])
+  def testGetRootKeyOnNtUserDat(self):
+    """Tests the GetRootKey function on a NTUSER.DAT file."""
+    win_registry = registry.WinRegistry(
+        registry_file_reader=TestWinRegistryFileReaderMapped())
+
+    root_key = win_registry.GetRootKey()
+    self.assertIsNotNone(root_key)
+    self.assertEqual(root_key.number_of_subkeys, 2)
+
+    expected_subkey_names = ['HKEY_CURRENT_USER', 'HKEY_LOCAL_MACHINE']
+    subkey_names = [key.name for key in root_key.GetSubkeys()]
+    self.assertEqual(subkey_names, expected_subkey_names)
+
+    subkey = root_key.GetSubkeyByPath('HKEY_CURRENT_USER\\Software\\Classes')
+    # TODO: fix mapping of UsrClass.dat
+    self.assertIsNone(subkey)
 
   @test_lib.skipUnlessHasTestFile(['SYSTEM'])
   def testMapFile(self):
@@ -415,7 +469,15 @@ class RegistryTest(test_lib.BaseTestCase):
     profile_path = '%SystemRoot%\\System32\\config\\systemprofile'
     win_registry.MapUserFile(profile_path, registry_file)
 
-  # TODO: add tests for SplitKeyPath
+  def testSplitKeyPath(self):
+    """Tests the SplitKeyPath function."""
+    win_registry = registry.WinRegistry(
+        registry_file_reader=TestWinRegistryFileReader())
+
+    expected_path_segments = ['HKEY_CURRENT_USER', 'Software', 'Microsoft']
+    path_segments = win_registry.SplitKeyPath(
+        'HKEY_CURRENT_USER\\Software\\Microsoft')
+    self.assertEqual(path_segments, expected_path_segments)
 
 
 if __name__ == '__main__':
