@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 
-import collections
+from collections import abc as collections
 
 from dfwinreg import definitions
 from dfwinreg import interface

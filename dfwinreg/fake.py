@@ -3,8 +3,9 @@
 
 from __future__ import unicode_literals
 
-import collections
 import os
+
+from collections import abc as collections
 
 from dfdatetime import filetime as dfdatetime_filetime
 from dfdatetime import semantic_time as dfdatetime_semantic_time
